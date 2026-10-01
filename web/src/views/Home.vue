@@ -46,7 +46,8 @@ const topLadder = computed(() => {
 })
 
 async function load() {
-  loading.value = true; err.value = ''
+  loading.value = true
+  errs.value = {}
   try {
     const q = (ds: string, extra = '') => api('/api/query', { dataset: ds, limit: 300, ...Object.fromEntries(new URLSearchParams(extra)) })
     // 外部用户体验优化:温度/成交额只取最新 1 条;日快照(涨停/梯队)按日期缓存 5 分钟
@@ -80,9 +81,7 @@ async function load() {
     ladder.value = pick(l)[0]
     hot.value = pick(h, 10)
     anomaly.value = pick(a, 30)
-  } catch (e: any) {
-    err.value = e.message || String(e)
-  } finally { loading.value = false }
+  } catch {} finally { loading.value = false }
 }
 onMounted(load)
 </script>
@@ -94,9 +93,8 @@ onMounted(load)
     <p class="text-xs text-zinc-500 mb-3">{{ errs['temp']==='AUTH' ? '请设置 token' : '点下方重试' }}</p>
     <button @click="load()" class="text-sm px-4 py-1.5 rounded-lg bg-red-500/90 hover:bg-red-500">重试</button>
   </div>
-  <div v-else-if="!loading && Object.values(errs).some(Boolean)" class="card text-center py-6 mb-4 border-amber-800/50 text-amber-300 text-sm">部分模块加载失败(游客档位限制或网络抖动)——各卡片内有重试/升级指引
-    <p class="text-zinc-300 mb-2">{{ err }}</p>
-    <p class="text-xs text-zinc-500">游客模式下部分数据不可用;粘贴免费 token 可解锁(右上角设置)</p>
+  <div v-else-if="!loading && Object.values(errs).some(Boolean)" class="card text-center py-4 mb-4 border-amber-800/50 text-amber-300 text-sm">
+    部分模块加载失败(游客档位限制或网络抖动)——各卡片内有重试/升级指引;免费 token 可在右上角设置里粘贴
   </div>
   <template v-else>
     <!-- 温度主卡 -->
