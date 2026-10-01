@@ -49,10 +49,22 @@ async function load() {
   loading.value = true; err.value = ''
   try {
     const q = (ds: string, extra = '') => api('/api/query', { dataset: ds, limit: 300, ...Object.fromEntries(new URLSearchParams(extra)) })
+    // 外部用户体验优化:温度/成交额只取最新 1 条;日快照(涨停/梯队)按日期缓存 5 分钟
+    // (收盘后数据不变,重复进页不重复付公网延迟;外部部署同样受益)
+    const dayCache = (key: string, fn: () => Promise<any>, ttlMs = 5 * 60_000): Promise<any> => {
+      try {
+        const hit = JSON.parse(sessionStorage.getItem(key) || 'null')
+        if (hit && Date.now() - hit.t < ttlMs) return Promise.resolve(hit.v)
+      } catch {}
+      return fn().then(v => { try { sessionStorage.setItem(key, JSON.stringify({ t: Date.now(), v })) } catch {} ; return v })
+    }
     const [b, tv, z, l, h, a] = await Promise.allSettled([
-      q('sentiment.breadth_minute'), q('quote.turnover_minute'),
-      q('board.zt_pools'), q('board.limit_ladder'),
-      q('sentiment.hot_ths', 'limit=10'), q('board.anomaly_reason', 'limit=30'),
+      dayCache('sr.breadth1', () => q('sentiment.breadth_minute', 'limit=1')),
+      dayCache('sr.turnover1', () => q('quote.turnover_minute', 'limit=1')),
+      dayCache('sr.zt300', () => q('board.zt_pools')),
+      dayCache('sr.ladder', () => q('board.limit_ladder', 'limit=1')),
+      q('sentiment.hot_ths', 'limit=10'),
+      q('board.anomaly_reason', 'limit=30'),
     ])
     const pick = (x: PromiseSettledResult<any>, n = 1) => x.status === 'fulfilled' ? (x.value?.rows || []).slice(0, n) : []
     breadth.value = pick(b)[0]

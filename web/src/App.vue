@@ -4,7 +4,7 @@ import { getUserToken, setUserToken } from './api'
 const showSettings = ref(false)
 const tokenInput = ref(getUserToken())
 const saved = ref('')
-function save() { setUserToken(tokenInput.value); saved.value = tokenInput.value ? '已保存,刷新生效' : '已清除'; setTimeout(() => (saved.value = ''), 2500); showSettings.value = false }
+function save() { setUserToken(tokenInput.value); location.reload() }
 </script>
 
 <template>

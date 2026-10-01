@@ -13,11 +13,13 @@ export default defineConfig(({ mode }) => {
       port: 5173,
       proxy: {
         '/api': {
-          target: 'https://api-stock.600044.xyz',
+          target: 'https://api-stock.600044.xyz', // 与外部部署完全一致(公网入口)
           changeOrigin: true,
           configure(p) {
             p.on('proxyReq', (req) => {
-              if (env.VITE_DEV_TOKEN) req.setHeader('Authorization', `Bearer ${env.VITE_DEV_TOKEN}`)
+              // 用户自带 token(设置页粘贴)原样透传;仅游客请求注入 dev token
+              if (!req.getHeader('authorization') && env.VITE_DEV_TOKEN)
+                req.setHeader('Authorization', `Bearer ${env.VITE_DEV_TOKEN}`)
             })
           },
         },
