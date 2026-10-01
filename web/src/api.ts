@@ -12,7 +12,13 @@ export async function api<T = any>(path: string, params: Record<string, string |
   const headers: Record<string, string> = {}
   const ut = getUserToken()
   if (ut) headers['Authorization'] = `Bearer ${ut}`
-  const r = await fetch(`/api${path}?${qs}`, { headers })
+  // 网络级自动重试 1 次:公网链路偶发抖动(ETIMEDOUT),静默自愈不打扰用户
+  let r: Response
+  for (let i = 0; i < 2; i++) {
+    try { r = await fetch(`/api${path}?${qs}`, { headers }); break }
+    catch { if (i === 1) throw Object.assign(new Error('网络波动,请重试'), { code: 'RETRY' }) }
+  }
+  r = r!
   const body = await r.json().catch(() => ({}))
   if (r.status === 401) throw Object.assign(new Error('Token 无效,请在设置页检查'), { code: 'AUTH' })
   if (r.status === 403 || body?.error === 'TIER_TOO_LOW')
