@@ -20,7 +20,7 @@ _CJK_CANDIDATES = [
 for _f in _CJK_CANDIDATES:
     if os.path.exists(_f):
         font_manager.fontManager.addfont(_f)
-        font_manager.rcParams["font.family"] = font_manager.FontProperties(fname=_f).get_name()
+        matplotlib.rcParams["font.family"] = font_manager.FontProperties(fname=_f).get_name()
         break
 matplotlib.rcParams["axes.unicode_minus"] = False
 
