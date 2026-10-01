@@ -7,6 +7,22 @@ import requests
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+from matplotlib import font_manager
+
+# CJK 字体链(2026-10-01:阿里云机器只有 DroidSansFallback;CI 装 fonts-noto-cjk)
+# 教训同 aliyun-font-pitfall:缺 CJK 字体=中文全变方框,必须显式注册
+_CJK_CANDIDATES = [
+    "/usr/share/fonts/google-droid/DroidSansFallback.ttf",
+    "/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc",
+    "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
+    "/usr/share/fonts/noto-cjk/NotoSansCJK-Regular.ttc",
+]
+for _f in _CJK_CANDIDATES:
+    if os.path.exists(_f):
+        font_manager.fontManager.addfont(_f)
+        font_manager.rcParams["font.family"] = font_manager.FontProperties(fname=_f).get_name()
+        break
+matplotlib.rcParams["axes.unicode_minus"] = False
 
 BASE = "https://api-stock.600044.xyz"
 TOK = os.environ["STOCKROUTE_TOKEN"]
