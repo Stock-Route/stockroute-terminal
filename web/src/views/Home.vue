@@ -4,7 +4,7 @@ import { onMounted, ref, computed } from 'vue'
 import { api } from '../api'
 
 const loading = ref(true)
-const err = ref('')
+const errs = ref<Record<string, string>>({})   // 每卡错误:null=正常/LOCKED=需档位/其他=可重试
 const breadth = ref<any>(null)     // 最新一分钟涨跌家数
 const turnover = ref<any>(null)    // 成交额
 const zt = ref<any[]>([])          // 涨停池
@@ -58,13 +58,20 @@ async function load() {
       } catch {}
       return fn().then(v => { try { sessionStorage.setItem(key, JSON.stringify({ t: Date.now(), v })) } catch {} ; return v })
     }
+    const wrap = async (key: string, fn: () => Promise<any>) => {
+      try { errs.value[key] = ''; return await fn() }
+      catch (e: any) {
+        errs.value[key] = e.code === 'TIER' ? 'LOCKED' : (e.code === 'AUTH' ? 'AUTH' : 'RETRY')
+        return null
+      }
+    }
     const [b, tv, z, l, h, a] = await Promise.allSettled([
-      dayCache('sr.breadth1', () => q('sentiment.breadth_minute', 'limit=1')),
-      dayCache('sr.turnover1', () => q('quote.turnover_minute', 'limit=1')),
-      dayCache('sr.zt300', () => q('board.zt_pools')),
-      dayCache('sr.ladder', () => q('board.limit_ladder', 'limit=1')),
-      q('sentiment.hot_ths', 'limit=10'),
-      q('board.anomaly_reason', 'limit=30'),
+      wrap('temp', () => dayCache('sr.breadth1', () => q('sentiment.breadth_minute', 'limit=1'))),
+      wrap('temp', () => dayCache('sr.turnover1', () => q('quote.turnover_minute', 'limit=1'))),
+      wrap('zt', () => dayCache('sr.zt300', () => q('board.zt_pools'))),
+      wrap('ladder', () => dayCache('sr.ladder', () => q('board.limit_ladder', 'limit=1'))),
+      wrap('hot', () => q('sentiment.hot_ths', 'limit=10')),
+      wrap('flow', () => q('board.anomaly_reason', 'limit=30')),
     ])
     const pick = (x: PromiseSettledResult<any>, n = 1) => x.status === 'fulfilled' ? (x.value?.rows || []).slice(0, n) : []
     breadth.value = pick(b)[0]
@@ -105,7 +112,13 @@ onMounted(load)
       <!-- 龙头榜 -->
       <div class="card">
         <h2 class="text-sm font-semibold text-zinc-300 mb-3">🏆 连板龙头</h2>
-        <template v-if="topLadder">
+        <div v-if="errs['ladder']==='LOCKED'" class="text-sm text-zinc-400 py-6 text-center">
+          🔒 连板梯队需基础档 <a href="https://m-stock.600044.xyz" target="_blank" class="text-red-400 underline">升级 →</a>
+        </div>
+        <div v-else-if="errs['ladder']" class="text-sm text-zinc-400 py-6 text-center">
+          加载失败 <button @click="load()" class="text-sky-400 underline">重试</button>
+        </div>
+        <template v-else-if="topLadder">
           <div class="text-2xl font-bold mb-2">{{ topLadder.label }}</div>
           <div class="flex flex-wrap gap-2">
             <span v-for="s in topLadder.stocks" :key="s.thscode" class="px-2.5 py-1 rounded-lg bg-red-500/10 text-red-300 text-sm">
@@ -121,7 +134,9 @@ onMounted(load)
 
       <!-- 人气榜 -->
       <div class="card">
-        <h2 class="text-sm font-semibold text-zinc-300 mb-3">🔥 人气榜 Top10</h2>
+        <h2 class="text-sm font-semibold text-zinc-300 mb-3">🔥 人气榜 Top10
+          <button v-if="errs['hot']" @click="load()" class="float-right text-xs text-sky-400 underline">重试</button></h2>
+        <p v-if="errs['hot']" class="text-sm text-zinc-400 py-6 text-center">{{ errs['hot']==='AUTH' ? '请设置 token' : '加载失败,点重试' }}</p>
         <ol class="space-y-1.5 text-sm">
           <li v-for="s in hot" :key="s.ticker" class="flex items-center gap-2">
             <span class="w-5 text-zinc-500 text-xs">{{ s.rank }}</span>
@@ -137,7 +152,9 @@ onMounted(load)
 
     <!-- 异动流 -->
     <div class="card mt-4">
-      <h2 class="text-sm font-semibold text-zinc-300 mb-3">⚡ 异动与归因</h2>
+      <h2 class="text-sm font-semibold text-zinc-300 mb-3">⚡ 异动与归因
+        <button v-if="errs['flow']" @click="load()" class="float-right text-xs text-sky-400 underline">重试</button></h2>
+      <p v-if="errs['flow']" class="text-sm text-zinc-400 py-6 text-center">{{ errs['flow']==='AUTH' ? '请设置 token' : '加载失败,点重试' }}</p>
       <div class="space-y-2.5 max-h-96 overflow-y-auto pr-1">
         <div v-for="(a, i) in anomaly" :key="i" class="border-l-2 pl-3 py-1"
              :class="a.tag_name?.includes('涨停') ? 'border-red-500/60' : a.tag_name?.includes('跌') ? 'border-emerald-500/60' : 'border-zinc-600'">
