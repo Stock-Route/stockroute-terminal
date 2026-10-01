@@ -1,0 +1,7 @@
+@import "tailwindcss";
+
+:root { color-scheme: dark; }
+body { font-family: system-ui, -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif; }
+.card { @apply rounded-xl border border-zinc-800 bg-zinc-900/60 p-4; }
+.up { color: #ff4d5e; }
+.down { color: #2ee6a6; }

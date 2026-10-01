@@ -1,0 +1,24 @@
+// 统一数据客户端:全部走同源 /api(vite dev 代理 / CF Functions 生产代理)。
+// 用户 token(设置页粘贴)优先;游客回落服务端 DEMO_TOKEN(生产)。
+const USER_KEY = 'STOCKROUTE_USER_TOKEN'
+
+export function getUserToken(): string { return localStorage.getItem(USER_KEY) || '' }
+export function setUserToken(t: string) { localStorage.setItem(USER_KEY, t.trim()) }
+export function clearUserToken() { localStorage.removeItem(USER_KEY) }
+
+export async function api<T = any>(path: string, params: Record<string, string | number | undefined> = {}): Promise<T> {
+  const qs = new URLSearchParams()
+  for (const [k, v] of Object.entries(params)) if (v !== undefined && v !== '') qs.set(k, String(v))
+  const headers: Record<string, string> = {}
+  const ut = getUserToken()
+  if (ut) headers['Authorization'] = `Bearer ${ut}`
+  const r = await fetch(`/api${path}?${qs}`, { headers })
+  const body = await r.json().catch(() => ({}))
+  if (r.status === 401) throw Object.assign(new Error('Token 无效,请在设置页检查'), { code: 'AUTH' })
+  if (r.status === 403 || body?.error === 'TIER_TOO_LOW')
+    throw Object.assign(new Error('该数据需要更高档位'), { code: 'TIER' })
+  if (r.status === 429) throw Object.assign(new Error('请求过快,稍后再试'), { code: 'RATE' })
+  if (!r.ok || body?.ok === false)
+    throw Object.assign(new Error(body?.message || `HTTP ${r.status}`), { code: body?.error || 'ERR' })
+  return body
+}

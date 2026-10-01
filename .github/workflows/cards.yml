@@ -1,0 +1,26 @@
+name: daily-cards
+on:
+  schedule:
+    - cron: "35 9 * * 1-5"   # 北京 17:35(收盘数据落库后)
+  workflow_dispatch: {}
+permissions:
+  contents: write
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: pip install requests matplotlib
+      - name: render cards
+        env:
+          STOCKROUTE_TOKEN: ${{ secrets.STOCKROUTE_TOKEN }}
+        run: python3 cards/generator/render_cards.py
+      - name: commit
+        run: |
+          git config user.name "Menthol1024"
+          git config user.email "menthol1024@users.noreply.github.com"
+          git add cards/latest
+          git diff --cached --quiet || git commit -m "cards: daily update"
+          git push

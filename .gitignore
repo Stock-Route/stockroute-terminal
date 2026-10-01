@@ -6,4 +6,3 @@ __pycache__/
 .env.*
 *.local
 .DS_Store
-cards/latest/
