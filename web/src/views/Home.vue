@@ -89,7 +89,12 @@ onMounted(load)
 
 <template>
   <div v-if="loading" class="text-zinc-500 py-20 text-center">加载中…</div>
-  <div v-else-if="err" class="card text-center py-16">
+  <div v-else-if="errs['temp']" class="card text-center py-16">
+    <p class="text-zinc-300 mb-2">温度数据加载失败</p>
+    <p class="text-xs text-zinc-500 mb-3">{{ errs['temp']==='AUTH' ? '请设置 token' : '点下方重试' }}</p>
+    <button @click="load()" class="text-sm px-4 py-1.5 rounded-lg bg-red-500/90 hover:bg-red-500">重试</button>
+  </div>
+  <div v-else-if="!loading && Object.values(errs).some(Boolean)" class="card text-center py-6 mb-4 border-amber-800/50 text-amber-300 text-sm">部分模块加载失败(游客档位限制或网络抖动)——各卡片内有重试/升级指引
     <p class="text-zinc-300 mb-2">{{ err }}</p>
     <p class="text-xs text-zinc-500">游客模式下部分数据不可用;粘贴免费 token 可解锁(右上角设置)</p>
   </div>
