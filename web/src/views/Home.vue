@@ -93,10 +93,10 @@ onMounted(load)
     <p class="text-xs text-zinc-500 mb-3">{{ errs['temp']==='AUTH' ? '请设置 token' : '点下方重试' }}</p>
     <button @click="load()" class="text-sm px-4 py-1.5 rounded-lg bg-red-500/90 hover:bg-red-500">重试</button>
   </div>
-  <div v-else-if="!loading && Object.values(errs).some(Boolean)" class="card text-center py-4 mb-4 border-amber-800/50 text-amber-300 text-sm">
-    部分模块加载失败(游客档位限制或网络抖动)——各卡片内有重试/升级指引;免费 token 可在右上角设置里粘贴
-  </div>
   <template v-else>
+    <div v-if="Object.values(errs).some(Boolean)" class="card text-center py-3 mb-4 border-amber-800/50 text-amber-300 text-sm">
+      部分模块加载失败(游客档位限制或网络抖动)——各卡片内有重试/升级指引;免费 token 可在右上角设置里粘贴
+    </div>
     <!-- 温度主卡 -->
     <div class="card mb-4 flex items-center gap-8">
       <div class="text-center">
