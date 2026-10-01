@@ -12,10 +12,13 @@ export async function api<T = any>(path: string, params: Record<string, string |
   const headers: Record<string, string> = {}
   const ut = getUserToken()
   if (ut) headers['Authorization'] = `Bearer ${ut}`
+  // 2026-10-01 修:调用方传的 path 可能已带 /api 前缀,双写 /api/api/query = 404 且无审计
+  // (公网实测实锤:首页恒空白的根因);归一化防呆
+  const p = path.startsWith('/api') ? path : `/api${path}`
   // 网络级自动重试 1 次:公网链路偶发抖动(ETIMEDOUT),静默自愈不打扰用户
   let r: Response
   for (let i = 0; i < 2; i++) {
-    try { r = await fetch(`/api${path}?${qs}`, { headers }); break }
+    try { r = await fetch(`${p}?${qs}`, { headers }); break }
     catch { if (i === 1) throw Object.assign(new Error('网络波动,请重试'), { code: 'RETRY' }) }
   }
   r = r!
