@@ -19,8 +19,6 @@ const items = computed(() => rows.value.map(x => ({
   count: Number(x.company_count ?? x['公司家数'] ?? 1),
   lead: x.leading_stock || x['领涨股'] || '',
 })))
-const sorted = computed(() => [...items.value].sort((a, b) =>
-  mode.value === 'pct' ? b.pct - a.pct : b.fund - a.fund))
 
 function colorOf(v: number, max: number): string {
   if (!v) return '#3f3f46'
