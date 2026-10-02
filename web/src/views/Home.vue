@@ -140,7 +140,7 @@ onMounted(load)
       <!-- 人气榜 -->
       <div class="card">
         <h2 class="text-sm font-semibold text-zinc-300 mb-3">🔥 人气榜 Top10
-          <button v-if="errs['hot']" @click="load()" class="float-right text-xs text-sky-400 underline">重试</button></h2>
+          <button v-if="errs['hot']" @click="retry()" type="button" class="float-right text-xs text-sky-400 underline">重试</button></h2>
         <p v-if="errs['hot']" class="text-sm text-zinc-400 py-6 text-center">{{ errs['hot']==='AUTH' ? '请设置 token' : '加载失败,点重试' }}</p>
         <ol class="space-y-1.5 text-sm">
           <li v-for="s in hot" :key="s.ticker" class="flex items-center gap-2">
@@ -158,7 +158,7 @@ onMounted(load)
     <!-- 异动流 -->
     <div class="card mt-4">
       <h2 class="text-sm font-semibold text-zinc-300 mb-3">⚡ 异动与归因
-        <button v-if="errs['flow']" @click="load()" class="float-right text-xs text-sky-400 underline">重试</button></h2>
+        <button v-if="errs['flow']" @click="retry()" type="button" class="float-right text-xs text-sky-400 underline">重试</button></h2>
       <p v-if="errs['flow']" class="text-sm text-zinc-400 py-6 text-center">{{ errs['flow']==='AUTH' ? '请设置 token' : '加载失败,点重试' }}</p>
       <div class="space-y-2.5 max-h-96 overflow-y-auto pr-1">
         <div v-for="(a, i) in anomaly" :key="i" class="border-l-2 pl-3 py-1"
