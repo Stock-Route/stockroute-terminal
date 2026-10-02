@@ -85,6 +85,11 @@ function renderK() {
       { scale: true, axisLabel: { color: '#71717a' }, splitLine: { lineStyle: { color: '#18181b' } } },
       { gridIndex: 1, axisLabel: { show: false }, splitLine: { show: false } },
     ],
+    dataZoom: [
+      { type: 'inside', xAxisIndex: [0, 1], startValue: Math.max(0, dates.length - 120) },
+      { type: 'slider', xAxisIndex: [0, 1], bottom: 2, height: 18, borderColor: '#3f3f46',
+        textStyle: { color: '#71717a' } },
+    ],
     series: [
       { type: 'candlestick', data: candles, itemStyle: { color: '#ff4d5e', color0: '#2ee6a6', borderColor: '#ff4d5e', borderColor0: '#2ee6a6' } },
       { type: 'line', name: 'MA5', data: ma(5), symbol: 'none', lineStyle: { color: '#f5c542', width: 1 } },

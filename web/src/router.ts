@@ -8,5 +8,6 @@ export default createRouter({
     { path: '/', component: Home },
     { path: '/heartbeat', component: () => import('./views/Heartbeat.vue') },
     { path: '/stock/:code', component: () => import('./views/Stock.vue') },
+    { path: '/sectors', component: () => import('./views/Sectors.vue') },
   ],
 })

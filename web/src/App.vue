@@ -38,6 +38,7 @@ function onSearchKey(e: KeyboardEvent) {
         <a href="/" class="font-bold text-lg tracking-wide">StockRoute <span class="text-red-400">Terminal</span></a>
         <a href="/" class="text-sm text-zinc-400 hover:text-white">今日赚钱效应</a>
         <a href="/heartbeat" class="text-sm text-zinc-400 hover:text-white">市场心跳</a>
+        <a href="/sectors" class="text-sm text-zinc-400 hover:text-white">板块热度</a>
         <div class="relative flex-1 max-w-xs">
           <input v-model="kw" @keydown="onSearchKey" placeholder="搜代码 / 名称(回车)"
                  class="w-full bg-zinc-800/80 rounded-lg px-3 py-1.5 text-sm outline-none focus:ring-1 focus:ring-red-400" />
