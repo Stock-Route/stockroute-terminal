@@ -1,0 +1,19 @@
+server {
+    listen 80;
+    server_name _;
+    root /usr/share/nginx/html;
+    index index.html;
+
+    # /api 代理到 StockRoute 公网 API,注入运行时 token(envsubst 由 start.sh 完成)
+    location /api/ {
+        proxy_pass https://api-stock.600044.xyz;
+        proxy_ssl_server_name on;
+        proxy_set_header Host api-stock.600044.xyz;
+        proxy_set_header Authorization "Bearer ${STOCKROUTE_TOKEN}";
+        proxy_read_timeout 30s;
+        proxy_cache_valid 200 60s;
+    }
+
+    location / { try_files $uri $uri/ /index.html; }
+    add_header X-Data-By "stockroute" always;
+}

@@ -1,0 +1,19 @@
+name: docker-build
+on:
+  push:
+    paths: ["docker/**", "web/**", "compose.yaml", ".github/workflows/docker-build.yml"]
+  workflow_dispatch: {}
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: build image(仅验证可构建,不推送)
+        run: docker build -f docker/Dockerfile -t stockroute-terminal:ci .
+      - name: smoke(容器起得来+首页 200)
+        run: |
+          docker run -d --name t -e STOCKROUTE_TOKEN=ci-dummy -p 8088:80 stockroute-terminal:ci
+          sleep 3
+          code=$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8088/)
+          echo "首页: $code"
+          [ "$code" = "200" ]
