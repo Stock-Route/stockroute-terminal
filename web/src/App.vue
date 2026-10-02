@@ -1,10 +1,34 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import { getUserToken, setUserToken } from './api'
+const router = useRouter()
 const showSettings = ref(false)
 const tokenInput = ref(getUserToken())
 const saved = ref('')
 function save() { setUserToken(tokenInput.value); location.reload() }
+
+// 全局搜股:输代码或名称 → 下拉 → 回车/点选进个股页
+const kw = ref('')
+const results = ref<any[]>([])
+const searching = ref(false)
+let timer: number | undefined
+watch(kw, (v) => {
+  clearTimeout(timer)
+  const s = v.trim()
+  if (!s) { results.value = []; return }
+  timer = window.setTimeout(async () => {
+    searching.value = true
+    try {
+      const r = await fetch(`/api/meta/stocks?keyword=${encodeURIComponent(s)}`).then(x => x.json())
+      results.value = (r?.rows || []).slice(0, 8)
+    } catch { results.value = [] } finally { searching.value = false }
+  }, 250)
+})
+function go(code: string) { kw.value = ''; results.value = []; router.push(`/stock/${code}`) }
+function onSearchKey(e: KeyboardEvent) {
+  if (e.key === 'Enter' && results.value.length) go(results.value[0].code)
+}
 </script>
 
 <template>
@@ -14,6 +38,17 @@ function save() { setUserToken(tokenInput.value); location.reload() }
         <a href="/" class="font-bold text-lg tracking-wide">StockRoute <span class="text-red-400">Terminal</span></a>
         <a href="/" class="text-sm text-zinc-400 hover:text-white">今日赚钱效应</a>
         <a href="/heartbeat" class="text-sm text-zinc-400 hover:text-white">市场心跳</a>
+        <div class="relative flex-1 max-w-xs">
+          <input v-model="kw" @keydown="onSearchKey" placeholder="搜代码 / 名称(回车)"
+                 class="w-full bg-zinc-800/80 rounded-lg px-3 py-1.5 text-sm outline-none focus:ring-1 focus:ring-red-400" />
+          <div v-if="results.length" class="absolute z-50 mt-1 w-full bg-zinc-900 border border-zinc-700 rounded-lg overflow-hidden shadow-xl">
+            <div v-for="s in results" :key="s.code" @click="go(s.code)"
+                 class="px-3 py-2 hover:bg-zinc-800 cursor-pointer text-sm flex justify-between">
+              <span>{{ s.name }} <span class="text-zinc-500 text-xs">{{ s.code }}</span></span>
+              <span class="text-zinc-500 text-xs">{{ s.industry }}</span>
+            </div>
+          </div>
+        </div>
         <div class="ml-auto flex items-center gap-3">
           <span v-if="getUserToken()" class="text-xs px-2 py-0.5 rounded-full bg-emerald-900/60 text-emerald-300">个人 token</span>
           <button @click="showSettings = !showSettings" class="text-sm px-3 py-1 rounded-lg border border-zinc-700 hover:border-zinc-500">设置</button>
