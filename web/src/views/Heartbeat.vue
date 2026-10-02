@@ -27,7 +27,7 @@ const curLabel = computed(() => {
 
 async function loadDates() {
   // 近 30 个交易日:按数据集最新分片取 trade_date 列表(直接拉最新1日+往前翻页简化:拉300条覆盖多日)
-  const r = await api('/api/query', { dataset: 'sentiment.breadth_minute', limit: 241 * 30 })
+  const r = await api('/api/query', { dataset: 'sentiment.breadth_minute', limit: 2000 }) // 单次上限 2000(≈近8个交易日);更长历史走分页(M2 路线)
   const rows = r?.rows || []
   const s = new Set<string>()
   for (const x of rows) s.add(String(x.trade_date))
