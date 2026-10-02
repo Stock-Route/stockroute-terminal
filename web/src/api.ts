@@ -24,8 +24,15 @@ export async function api<T = any>(path: string, params: Record<string, string |
   r = r!
   const body = await r.json().catch(() => ({}))
   if (r.status === 401) throw Object.assign(new Error('Token 无效,请在设置页检查'), { code: 'AUTH' })
-  if (r.status === 403 || body?.error === 'TIER_TOO_LOW')
-    throw Object.assign(new Error('该数据需要更高档位'), { code: 'TIER' })
+  // 403 三分:配额耗尽(不可重试,次日恢复)/档位不足(可升级)/其他
+  // 2026-10-02 修:此前所有 403 一律归"需升级+可重试",配额耗尽的用户反复点重试毫无意义
+  if (r.status === 403 || body?.error === 'TIER_TOO_LOW' || r.status === 429 && body?.error === 'MONTH_QUOTA_EXCEEDED') {
+    const msg = String(body?.message || '')
+    if (/已达上限|已用完/.test(msg) || body?.error?.includes('QUOTA') || body?.error?.includes('POINTS') || body?.error?.includes('ROWS'))
+      throw Object.assign(new Error(msg || '今日额度已用完'), { code: 'QUOTA' })
+    if (body?.error === 'TIER_TOO_LOW' || r.status === 403)
+      throw Object.assign(new Error('该数据需要更高档位'), { code: 'TIER' })
+  }
   if (r.status === 429) throw Object.assign(new Error('请求过快,稍后再试'), { code: 'RATE' })
   if (!r.ok || body?.ok === false)
     throw Object.assign(new Error(body?.message || `HTTP ${r.status}`), { code: body?.error || 'ERR' })

@@ -90,10 +90,26 @@ onMounted(load)
 
 <template>
   <div v-if="loading" class="text-zinc-500 py-20 text-center">加载中…</div>
-  <div v-else-if="errs['temp']" class="card text-center py-16">
-    <p class="text-zinc-300 mb-2">温度数据加载失败</p>
-    <p class="text-xs text-zinc-500 mb-3">{{ errs['temp']==='AUTH' ? '请设置 token' : '点下方重试' }}</p>
-    <button @click="retry()" class="text-sm px-4 py-1.5 rounded-lg bg-red-500/90 hover:bg-red-500">重试</button>
+  <div v-else-if="errs['temp']" class="card text-center py-12">
+    <template v-if="errs['temp']==='QUOTA'">
+      <p class="text-2xl mb-2">🪫</p>
+      <p class="text-zinc-200 mb-1">今日免费额度已用完(200 次/日)</p>
+      <p class="text-xs text-zinc-500 mb-4">次日 0 点自动恢复;或<a href="https://m-stock.600044.xyz" class="text-red-400 underline">开通档位</a>解除日上限 ·
+        <a href="https://m-stock.600044.xyz" class="text-sky-400 underline">查看用量</a></p>
+      <button @click="retry()" class="text-xs text-zinc-400 underline">我换了 token,重试</button>
+    </template>
+    <template v-else-if="errs['temp']==='LOCKED'">
+      <p class="text-zinc-200 mb-3">🔒 该数据需更高档位</p>
+      <a href="https://m-stock.600044.xyz" class="text-sm text-red-400 underline">去升级 →</a>
+    </template>
+    <template v-else-if="errs['temp']==='AUTH'">
+      <p class="text-zinc-200 mb-3">Token 无效</p>
+      <p class="text-xs text-zinc-500">右上角设置里重新粘贴</p>
+    </template>
+    <template v-else>
+      <p class="text-zinc-300 mb-3">温度数据加载失败(网络波动)</p>
+      <button @click="retry()" class="text-sm px-4 py-1.5 rounded-lg bg-red-500/90 hover:bg-red-500">重试</button>
+    </template>
   </div>
   <template v-else>
     <div v-if="Object.values(errs).some(Boolean)" class="card text-center py-3 mb-4 border-amber-800/50 text-amber-300 text-sm">
@@ -117,7 +133,8 @@ onMounted(load)
       <!-- 龙头榜 -->
       <div class="card">
         <h2 class="text-sm font-semibold text-zinc-300 mb-3">🏆 连板龙头</h2>
-        <div v-if="errs['ladder']==='LOCKED'" class="text-sm text-zinc-400 py-6 text-center">
+        <div v-if="errs['ladder']==='QUOTA'" class="text-sm text-amber-300/80 py-6 text-center">🪫 今日额度已用完,次日 0 点恢复</div>
+        <div v-else-if="errs['ladder']==='LOCKED'" class="text-sm text-zinc-400 py-6 text-center">
           🔒 连板梯队需基础档 <a href="https://m-stock.600044.xyz" target="_blank" class="text-red-400 underline">升级 →</a>
         </div>
         <div v-else-if="errs['ladder']" class="text-sm text-zinc-400 py-6 text-center">
@@ -140,8 +157,9 @@ onMounted(load)
       <!-- 人气榜 -->
       <div class="card">
         <h2 class="text-sm font-semibold text-zinc-300 mb-3">🔥 人气榜 Top10
-          <button v-if="errs['hot']" @click="retry()" type="button" class="float-right text-xs text-sky-400 underline">重试</button></h2>
-        <p v-if="errs['hot']" class="text-sm text-zinc-400 py-6 text-center">{{ errs['hot']==='AUTH' ? '请设置 token' : '加载失败,点重试' }}</p>
+          <button v-if="errs['hot']==='RETRY'" @click="retry()" type="button" class="float-right text-xs text-sky-400 underline">重试</button></h2>
+        <p v-if="errs['hot']==='QUOTA'" class="text-sm text-amber-300/80 py-6 text-center">🪫 今日额度已用完,次日 0 点恢复</p>
+        <p v-else-if="errs['hot']" class="text-sm text-zinc-400 py-6 text-center">{{ errs['hot']==='AUTH' ? '请设置 token' : errs['hot']==='LOCKED' ? '🔒 需更高档位' : '加载失败,点重试' }}</p>
         <ol class="space-y-1.5 text-sm">
           <li v-for="s in hot" :key="s.ticker" class="flex items-center gap-2">
             <span class="w-5 text-zinc-500 text-xs">{{ s.rank }}</span>
@@ -158,8 +176,9 @@ onMounted(load)
     <!-- 异动流 -->
     <div class="card mt-4">
       <h2 class="text-sm font-semibold text-zinc-300 mb-3">⚡ 异动与归因
-        <button v-if="errs['flow']" @click="retry()" type="button" class="float-right text-xs text-sky-400 underline">重试</button></h2>
-      <p v-if="errs['flow']" class="text-sm text-zinc-400 py-6 text-center">{{ errs['flow']==='AUTH' ? '请设置 token' : '加载失败,点重试' }}</p>
+        <button v-if="errs['flow']==='RETRY'" @click="retry()" type="button" class="float-right text-xs text-sky-400 underline">重试</button></h2>
+      <p v-if="errs['flow']==='QUOTA'" class="text-sm text-amber-300/80 py-6 text-center">🪫 今日额度已用完,次日 0 点恢复</p>
+      <p v-else-if="errs['flow']" class="text-sm text-zinc-400 py-6 text-center">{{ errs['flow']==='AUTH' ? '请设置 token' : errs['flow']==='LOCKED' ? '🔒 需更高档位' : '加载失败,点重试' }}</p>
       <div class="space-y-2.5 max-h-96 overflow-y-auto pr-1">
         <div v-for="(a, i) in anomaly" :key="i" class="border-l-2 pl-3 py-1"
              :class="a.tag_name?.includes('涨停') ? 'border-red-500/60' : a.tag_name?.includes('跌') ? 'border-emerald-500/60' : 'border-zinc-600'">
