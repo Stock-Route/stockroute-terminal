@@ -45,44 +45,46 @@ const topLadder = computed(() => {
   return null
 })
 
-async function load() {
-  loading.value = true
-  errs.value = {}
+// 每张卡独立取数器:重试只刷单卡,不闪整页(2026-10-02 用户反馈"重试=整页刷新")
+const dayCache = (key: string, fn: () => Promise<any>, ttlMs = 5 * 60_000): Promise<any> => {
   try {
-    const q = (ds: string, extra = '') => api('/api/query', { dataset: ds, limit: 300, ...Object.fromEntries(new URLSearchParams(extra)) })
-    // 外部用户体验优化:温度/成交额只取最新 1 条;日快照(涨停/梯队)按日期缓存 5 分钟
-    // (收盘后数据不变,重复进页不重复付公网延迟;外部部署同样受益)
-    const dayCache = (key: string, fn: () => Promise<any>, ttlMs = 5 * 60_000): Promise<any> => {
-      try {
-        const hit = JSON.parse(sessionStorage.getItem(key) || 'null')
-        if (hit && Date.now() - hit.t < ttlMs) return Promise.resolve(hit.v)
-      } catch {}
-      return fn().then(v => { try { sessionStorage.setItem(key, JSON.stringify({ t: Date.now(), v })) } catch {} ; return v })
-    }
-    const wrap = async (key: string, fn: () => Promise<any>) => {
-      try { errs.value[key] = ''; return await fn() }
-      catch (e: any) {
-        errs.value[key] = e.code === 'TIER' ? 'LOCKED' : (e.code === 'AUTH' ? 'AUTH' : 'RETRY')
-        return null
-      }
-    }
-    const [b, tv, z, l, h, a] = await Promise.allSettled([
-      wrap('temp', () => dayCache('sr.breadth1', () => q('sentiment.breadth_minute', 'limit=1'))),
-      wrap('temp', () => dayCache('sr.turnover1', () => q('quote.turnover_minute', 'limit=1'))),
-      wrap('zt', () => dayCache('sr.zt300', () => q('board.zt_pools'))),
-      wrap('ladder', () => dayCache('sr.ladder', () => q('board.limit_ladder', 'limit=1'))),
-      wrap('hot', () => q('sentiment.hot_ths', 'limit=10')),
-      wrap('flow', () => q('board.anomaly_reason', 'limit=30')),
-    ])
-    const pick = (x: PromiseSettledResult<any>, n = 1) => x.status === 'fulfilled' ? (x.value?.rows || []).slice(0, n) : []
-    breadth.value = pick(b)[0]
-    turnover.value = pick(tv)[0]
-    zt.value = pick(z, 300)
-    ladder.value = pick(l)[0]
-    hot.value = pick(h, 10)
-    anomaly.value = pick(a, 30)
-  } catch {} finally { loading.value = false }
+    const hit = JSON.parse(sessionStorage.getItem(key) || 'null')
+    if (hit && Date.now() - hit.t < ttlMs) return Promise.resolve(hit.v)
+  } catch {}
+  return fn().then(v => { try { sessionStorage.setItem(key, JSON.stringify({ t: Date.now(), v })) } catch {}; return v })
 }
+const q = (ds: string, extra = '') => api('/api/query', { dataset: ds, limit: 300, ...Object.fromEntries(new URLSearchParams(extra)) })
+const pick = (v: any, n = 1) => (v?.rows || []).slice(0, n)
+
+const fetchers: Record<string, () => Promise<void>> = {
+  async temp() {
+    const [b, tv] = await Promise.all([
+      dayCache('sr.breadth1', () => q('sentiment.breadth_minute', 'limit=1')),
+      dayCache('sr.turnover1', () => q('quote.turnover_minute', 'limit=1')),
+    ])
+    breadth.value = pick(b)[0]; turnover.value = pick(tv)[0]
+  },
+  async zt() { zt.value = pick(await dayCache('sr.zt300', () => q('board.zt_pools')), 300) },
+  async ladder() { ladder.value = pick(await dayCache('sr.ladder', () => q('board.limit_ladder', 'limit=1')))[0] },
+  async hot() { hot.value = pick(await q('sentiment.hot_ths', 'limit=10'), 10) },
+  async flow() { anomaly.value = pick(await q('board.anomaly_reason', 'limit=30'), 30) },
+}
+
+async function run(key: string, silent = false) {
+  if (!silent) errs.value[key] = ''
+  try { errs.value[key] = ''; await fetchers[key]() }
+  catch (e: any) {
+    errs.value[key] = e.code === 'TIER' ? 'LOCKED' : (e.code === 'AUTH' ? 'AUTH' : 'RETRY')
+  }
+}
+
+async function load(silent = false) {
+  if (!silent) loading.value = true
+  errs.value = silent ? errs.value : {}
+  await Promise.allSettled(Object.keys(fetchers).map(k => run(k, silent)))
+  loading.value = false
+}
+function retry() { load(true) }   // 静默刷新:页面不闪,单卡原位更新
 onMounted(load)
 </script>
 
@@ -91,7 +93,7 @@ onMounted(load)
   <div v-else-if="errs['temp']" class="card text-center py-16">
     <p class="text-zinc-300 mb-2">温度数据加载失败</p>
     <p class="text-xs text-zinc-500 mb-3">{{ errs['temp']==='AUTH' ? '请设置 token' : '点下方重试' }}</p>
-    <button @click="load()" class="text-sm px-4 py-1.5 rounded-lg bg-red-500/90 hover:bg-red-500">重试</button>
+    <button @click="retry()" class="text-sm px-4 py-1.5 rounded-lg bg-red-500/90 hover:bg-red-500">重试</button>
   </div>
   <template v-else>
     <div v-if="Object.values(errs).some(Boolean)" class="card text-center py-3 mb-4 border-amber-800/50 text-amber-300 text-sm">
@@ -119,7 +121,7 @@ onMounted(load)
           🔒 连板梯队需基础档 <a href="https://m-stock.600044.xyz" target="_blank" class="text-red-400 underline">升级 →</a>
         </div>
         <div v-else-if="errs['ladder']" class="text-sm text-zinc-400 py-6 text-center">
-          加载失败 <button @click="load()" class="text-sky-400 underline">重试</button>
+          加载失败 <button @click="retry()" class="text-sky-400 underline">重试</button>
         </div>
         <template v-else-if="topLadder">
           <div class="text-2xl font-bold mb-2">{{ topLadder.label }}</div>
