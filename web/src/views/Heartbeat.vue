@@ -124,6 +124,12 @@ onBeforeUnmount(() => { clearInterval(timer); chart?.dispose() })
   </div>
 
   <div v-if="loading" class="text-zinc-500 py-20 text-center">加载中…</div>
+  <div v-else-if="err && /上限|200/.test(err)" class="card text-center py-12">
+    <p class="text-2xl mb-2">🔒</p>
+    <p class="text-zinc-200 mb-1">市场心跳需基础档及以上</p>
+    <p class="text-xs text-zinc-500 mb-4">全天回放需 241 点/次,免费档单次上限 200;游客可通过本站 demo 直接体验</p>
+    <a href="https://m-stock.600044.xyz" class="text-sm text-red-400 underline">去升级 →</a>
+  </div>
   <div v-else-if="err" class="card text-center py-16 text-zinc-300">{{ err }}</div>
   <div v-show="!loading && !err" ref="el" class="h-[480px]"></div>
 
