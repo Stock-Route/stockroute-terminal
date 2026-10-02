@@ -97,8 +97,9 @@ function renderK() {
 const pe = computed(() => basic.value ? (basic.value.peTTM ?? basic.value.pe ?? '-') : '-')
 const pbv = computed(() => basic.value ? (basic.value.pb ?? '-') : '-')
 const mkt = computed(() => {
-  const v = basic.value?.total_mv ?? basic.value?.total_mkt_cap
-  return v ? (Number(v) / 1e8).toFixed(0) + ' 亿' : '-'
+  const v = basic.value?.total_mv
+  // total_mv 单位=万元(Tushare daily_basic 口径;600570 实测 3,673,677 万=367 亿勾稽 ✓)
+  return v ? (Number(v) / 1e4).toFixed(0) + ' 亿' : '-'
 })
 const netText = computed(() => {
   const v = fundflow.value
