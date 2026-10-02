@@ -32,6 +32,17 @@ const tempColor = computed(() => {
 const ztCount = computed(() => breadth.value ? Number(breadth.value.limit_up) : zt.value.length)
 const turnoverYi = computed(() => turnover.value ? (Number(turnover.value.turnover) / 1e8).toFixed(0) : '-')
 
+// 涨停行业分布 Top10(README 卡片同款,数据复用 zt 列表零额外请求)
+const ztIndustry = computed(() => {
+  const c: Record<string, number> = {}
+  for (const s of zt.value) {
+    const k = (s.industry || s['所属行业'] || '其他').toString()
+    c[k] = (c[k] || 0) + 1
+  }
+  return Object.entries(c).sort((a, b) => b[1] - a[1]).slice(0, 10)
+})
+const ztIndMax = computed(() => ztIndustry.value[0]?.[1] || 1)
+
 // 连板梯队 boards_json → 最高板
 const topLadder = computed(() => {
   try {
@@ -170,6 +181,27 @@ onMounted(load)
             <span class="ml-auto text-zinc-600 text-xs">热度 {{ Number(s.heat/10000).toFixed(0) }}万</span>
           </li>
         </ol>
+      </div>
+    </div>
+
+    <!-- 涨停行业分布(与 README 卡片同源) -->
+    <div class="card mt-4">
+      <h2 class="text-sm font-semibold text-zinc-300 mb-3">📊 今日涨停行业分布
+        <span class="float-right text-xs text-zinc-500">共 {{ ztCount }} 只</span></h2>
+      <div v-if="errs['zt']==='LOCKED'" class="text-sm text-zinc-400 py-6 text-center">
+        🔒 涨停池明细需基础档 <a href="https://m-stock.600044.xyz" target="_blank" class="text-red-400 underline">升级 →</a>
+      </div>
+      <div v-else-if="errs['zt']==='QUOTA'" class="text-sm text-amber-300/80 py-6 text-center">🪫 今日额度已用完,次日 0 点恢复</div>
+      <div v-else-if="!ztIndustry.length" class="text-sm text-zinc-500 py-4 text-center">今日无涨停数据</div>
+      <div v-else class="space-y-2">
+        <div v-for="[ind, n] in ztIndustry" :key="ind" class="flex items-center gap-3 text-sm">
+          <span class="w-28 shrink-0 truncate text-right text-zinc-400">{{ ind }}</span>
+          <div class="flex-1 h-5 bg-zinc-800/60 rounded overflow-hidden">
+            <div class="h-full bg-gradient-to-r from-red-600/80 to-red-400/80 rounded"
+                 :style="{ width: (n * 100 / ztIndMax) + '%' }"></div>
+          </div>
+          <span class="w-8 text-zinc-300 tabular-nums">{{ n }}</span>
+        </div>
       </div>
     </div>
 
