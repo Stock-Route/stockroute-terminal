@@ -1,6 +1,6 @@
 <script setup lang="ts">
 // 市场心跳回放:241 分钟点 涨跌家数+成交额 动画回放(全网独家的分钟级市场宽度)
-import { onMounted, onBeforeUnmount, ref, computed } from 'vue'
+import { onMounted, onBeforeUnmount, ref, computed, nextTick } from 'vue'
 import * as echarts from 'echarts'
 import { api } from '../api'
 
@@ -44,9 +44,16 @@ async function loadDay() {
     ])
     breadth = (b?.rows || []).slice()
     turnover = (t?.rows || []).slice()
-    render()
     play()
-  } catch (e: any) { err.value = e.message || String(e) } finally { loading.value = false }
+    // 2026-10-02 修:render 早于 loading=false 时容器仍 display:none(0尺寸),
+    // echarts 在零尺寸上 init 则 canvas 永远 0×0(滑杆走/图形无的根因);
+    // 可见后 resize 重读容器尺寸
+  } catch (e: any) { err.value = e.message || String(e) } finally {
+    loading.value = false
+    await nextTick()
+    chart?.resize()
+    render()
+  }
 }
 
 function option(): echarts.EChartsOption {
