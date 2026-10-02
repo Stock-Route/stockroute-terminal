@@ -39,7 +39,6 @@ async function load() {
     run('kline', async () => {
       const d = await api(`/api/kline`, { code: c, limit: 250 })
       krows.value = d?.rows || []
-      await nextTick(); renderK()
     }),
     run('anomaly', async () => {
       const d = await api('/api/query', { dataset: 'board.anomaly_reason', code: bare, limit: 5 })
@@ -59,6 +58,8 @@ async function load() {
     }),
   ])
   loading.value = false
+  await nextTick()
+  renderK()          // 容器已挂载(v-if 释放)后渲染;提前渲染=零尺寸空图
 }
 
 function renderK() {
