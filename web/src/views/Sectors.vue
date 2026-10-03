@@ -12,10 +12,18 @@ const rows = ref<any[]>([])
 const updatedAt = ref('')
 let chart: echarts.ECharts | null = null
 
+const stats = computed(() => {
+  const up = items.value.filter(x => x.pct > 0).length
+  const down = items.value.filter(x => x.pct < 0).length
+  const top = [...items.value].sort((a, b) => b.pct - a.pct)[0]
+  const topFund = [...items.value].sort((a, b) => b.fund - a.fund)[0]
+  return { up, down, total: items.value.length, top, topFund }
+})
+
 const items = computed(() => rows.value.map(x => ({
   name: x.industry || x['行业'] || '?',
   pct: Number(x.industry_pct_chg ?? x['行业-涨跌幅'] ?? 0),
-  fund: Number(x.net_inflow ?? x['净额'] ?? 0) / 1e8,   // 元→亿
+  fund: Number(x.net_inflow ?? x['净额'] ?? 0),   // 原生口径=亿(THS 页面口径,registry units 同)
   count: Number(x.company_count ?? x['公司家数'] ?? 1),
   lead: x.leading_stock || x['领涨股'] || '',
 })))
@@ -47,7 +55,10 @@ function render() {
     series: [{
       type: 'treemap', data, roam: false, nodeClick: false,
       breadcrumb: { show: false },
-      label: { show: true, formatter: (p: any) => `${p.name}\n${Number(p.data.pct).toFixed(2)}%`,
+      label: { show: true,
+               formatter: (p: any) => mode.value === 'pct'
+                 ? `${p.name}\n${Number(p.data.pct) > 0 ? '+' : ''}${Number(p.data.pct).toFixed(2)}%`
+                 : `${p.name}\n主力 ${Number(p.data.fund) > 0 ? '+' : ''}${Number(p.data.fund).toFixed(1)}亿`,
                color: '#fff', fontSize: 12, lineHeight: 18 },
       itemStyle: { borderColor: '#0B0E14', borderWidth: 2, gapWidth: 2 },
       upperLabel: { show: false },
@@ -74,13 +85,42 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="mb-4 flex flex-wrap items-center gap-3">
+  <div class="mb-3 flex flex-wrap items-center gap-3">
     <h1 class="text-lg font-bold">板块热度</h1>
     <div class="flex rounded-lg overflow-hidden border border-zinc-700 text-sm">
-      <button type="button" @click="onMode('pct')" :class="mode==='pct' ? 'bg-red-500/80 text-white' : 'text-zinc-400 hover:text-white'" class="px-3 py-1">涨跌</button>
+      <button type="button" @click="onMode('pct')" :class="mode==='pct' ? 'bg-red-500/80 text-white' : 'text-zinc-400 hover:text-white'" class="px-3 py-1">涨跌热力</button>
       <button type="button" @click="onMode('fund')" :class="mode==='fund' ? 'bg-red-500/80 text-white' : 'text-zinc-400 hover:text-white'" class="px-3 py-1">主力资金</button>
     </div>
     <span v-if="updatedAt" class="text-xs text-zinc-500">数据日期 {{ updatedAt.slice(0,4) }}-{{ updatedAt.slice(4,6) }}-{{ updatedAt.slice(6,8) }}(收盘)</span>
+  </div>
+
+  <!-- 怎么读这张图:一眼自解释 -->
+  <div class="card mb-3 px-4 py-3 text-sm text-zinc-300 leading-relaxed">
+    <template v-if="mode==='pct'">
+      <b class="text-zinc-100">怎么读:</b>每个格子 = 一个行业板块,<b>格子越大 = 里面上市公司越多</b>;
+      <span class="text-red-400">红色 = 今天上涨</span>、<span class="text-emerald-400">绿色 = 今天下跌</span>,颜色越深涨/跌越猛。
+      想知道「钱今天流进了哪些行业」→ 切到<b>主力资金</b>。
+    </template>
+    <template v-else>
+      <b class="text-zinc-100">怎么读:</b>每个格子 = 一个行业板块,格子大小含义同左;
+      颜色改为表示<b>主力资金净流入</b>——<span class="text-red-400">红色 = 主力净买入</span>、<span class="text-emerald-400">绿色 = 主力净卖出</span>,越深金额越大。红格集中的区域就是今天资金扎堆的方向。
+    </template>
+  </div>
+
+  <!-- 图例 + 当日概览 -->
+  <div class="mb-3 flex flex-wrap items-center gap-x-6 gap-y-2 text-xs text-zinc-400">
+    <div class="flex items-center gap-2">
+      <span class="inline-block w-8 h-3 rounded-sm" style="background:rgba(255,77,94,.85)"></span>涨 / 净流入
+      <span class="inline-block w-8 h-3 rounded-sm mx-1" style="background:#3f3f46"></span>
+      <span class="inline-block w-8 h-3 rounded-sm" style="background:rgba(46,230,166,.85)"></span>跌 / 净流出
+      <span class="text-zinc-600">← 颜色越深越强</span>
+    </div>
+    <template v-if="!loading && !err && stats.total">
+      <span class="text-zinc-500">|</span>
+      <span><b class="text-red-400">{{ stats.up }}</b> 个行业上涨 · <b class="text-emerald-400">{{ stats.down }}</b> 个下跌</span>
+      <span v-if="stats.top">领涨 <b class="text-zinc-200">{{ stats.top.name }}</b> <b class="text-red-400">+{{ stats.top.pct.toFixed(2) }}%</b></span>
+      <span v-if="stats.topFund && stats.topFund.fund > 0">主力最买 <b class="text-zinc-200">{{ stats.topFund.name }}</b> <b class="text-red-400">+{{ stats.topFund.fund.toFixed(1) }}亿</b></span>
+    </template>
   </div>
 
   <div v-if="loading" class="text-zinc-500 py-20 text-center">加载中…</div>
@@ -96,8 +136,7 @@ onMounted(async () => {
   </div>
   <div v-show="!loading && !err" ref="el" style="height:560px"></div>
 
-  <p class="text-xs text-zinc-500 mt-3">
-    格子面积=板块公司数,颜色红=涨/净流入、绿=跌/净流出,深浅=幅度;悬停看领涨股。
-    点击板块内个股待 M7 联动。数据为收盘口径,盘中请看首页异动流。
+  <p class="text-xs text-zinc-600 mt-3">
+    悬停任意格子可看涨跌幅 / 主力净额 / 领涨股明细。数据为收盘口径,盘中请看首页异动流。
   </p>
 </template>
