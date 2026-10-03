@@ -42,9 +42,9 @@ cd stockroute-terminal && pnpm install && pnpm --dir web dev
 **方式二:Docker 一键跑**
 
 ```bash
-STOCKROUTE_TOKEN=你的token docker compose up
+docker compose up   # 内置社区令牌,零配置直接跑
 # 浏览器打开 http://localhost:8088
-```
+# (社区令牌仅限本终端界面用途;个人 token 可在 .env 覆盖以获得独立配额)```
 
 **方式三:Colab 零安装体验**(不用装任何东西)
 

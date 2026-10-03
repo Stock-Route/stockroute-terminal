@@ -4,5 +4,6 @@ services:
     build: { context: ., dockerfile: docker/Dockerfile }
     ports: ["8088:80"]
     environment:
-      STOCKROUTE_TOKEN: ${STOCKROUTE_TOKEN:?请在环境变量或 .env 提供 token(免费注册 https://m-stock.600044.xyz)}
+      # 内置社区令牌(开箱即用);个人 token 可在 .env 覆盖(STOCKROUTE_TOKEN=xxx)
+      STOCKROUTE_TOKEN: ${STOCKROUTE_TOKEN:-bz9qgzFXELjTsD4jz9U12tPhDxeQ6E5jlnOiLntf}
     restart: unless-stopped
